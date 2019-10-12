@@ -32,6 +32,12 @@ void scrollZoomToTheRight(NSRunningApplication *zoom, NSInteger windowNumber) {
     }
 }
 
+void scrollZoomToTheLeft(NSRunningApplication *zoom, NSInteger windowNumber) {
+    for (int i = 0; i < 50; i++) {
+        postKeyCode(kVK_LeftArrow, zoom, NO, windowNumber); // far right
+    }
+}
+
 NSDictionary *extractWindowInfo(NSRunningApplication *zoom) {
     NSMutableDictionary *info = [NSMutableDictionary dictionary];
     CFArrayRef windowList = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID);
@@ -69,6 +75,7 @@ NSDictionary* setupZoom(NSRunningApplication *zoom) {
     postKeyCode(kVK_Tab, zoom, NO, settingsWindow); // focus settings pane
     postKeyCode(kVK_DownArrow, zoom, NO, settingsWindow); // ensure bottom row
     scrollZoomToTheRight(zoom, settingsWindow);
+    
     return info;
 }
 
@@ -109,7 +116,7 @@ NSTimeInterval unpack(NSString *gifPath, NSString *destinationDir) {
     }
     
     if ([[NSFileManager defaultManager] fileExistsAtPath:destinationFilename]) {
-//        return duration; // cache the gif in the tmpdir to save time
+        return duration; // cache the gif in the tmpdir to save time
     }
     [[NSTask launchedTaskWithLaunchPath:@"/bin/rm" arguments:@[@"-rf", destinationDir]] waitUntilExit];
     [[NSTask launchedTaskWithLaunchPath:@"/bin/mkdir" arguments:@[destinationDir]] waitUntilExit];
@@ -123,8 +130,8 @@ int main(int argc, const char * argv[]) {
     @autoreleasepool {
         
         NSArray *args = [[NSProcessInfo processInfo] arguments];
-        if (args.count != 2) {
-            NSLog(@"usage: zooboomafoo PATH_TO_GIF");
+        if (!(args.count == 2 || args.count == 3)) {
+            NSLog(@"usage: zooboomafoo PATH_TO_GIF [zoom_dir]");
             return 1;
         }
 
@@ -134,25 +141,30 @@ int main(int argc, const char * argv[]) {
             NSLog(@"Zoom doesn't appear to be running?");
             return 1;
         }
-        
+
         NSDictionary* opts = @{(__bridge id)kAXTrustedCheckOptionPrompt: @YES};
         BOOL hasAccess = AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)opts);
         if (!hasAccess) {
             NSLog(@"zooboomafoo needs accessibility controls to run. please go to system prefs and enable it.");
             return 1;
         }
-        
-        NSString *GIF_PATH = [args.lastObject stringByStandardizingPath];
+
+        NSString *GIF_PATH = [args[1] stringByStandardizingPath];
         if (![[NSFileManager defaultManager] fileExistsAtPath:GIF_PATH]) {
             NSLog(@"There doesn't seem to be a GIF there.");
             return 1;
         }
-        
+
         if (![[NSFileManager defaultManager] fileExistsAtPath:@"/usr/local/bin/convert"]) {
             NSLog(@"You don't seem to have imagemagick installed. Please run `brew install imagemagick`.");
             return 1;
         }
-        NSString *ZOOM_DIR = [[@"~/Library/Application Support/zoom.us/data/VirtualBkgnd_Default" stringByStandardizingPath] stringByReplacingOccurrencesOfString:@" " withString:@"\ "];
+        NSString *ZOOM_DIR;
+        if (args.count == 3) {
+            ZOOM_DIR = args[2];
+        } else {
+            ZOOM_DIR = [[@"~/Library/Application Support/zoom.us/data/VirtualBkgnd_Default" stringByStandardizingPath] stringByReplacingOccurrencesOfString:@" " withString:@"\ "];
+        }
         NSString *ZOOM_TMPDIR = [ZOOM_DIR stringByAppendingPathComponent:@"tmp"];
         NSDirectoryEnumerator *enumerator = [[NSFileManager defaultManager] enumeratorAtURL:[NSURL fileURLWithPath:ZOOM_DIR] includingPropertiesForKeys:@[NSURLNameKey, NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsSubdirectoryDescendants|NSDirectoryEnumerationSkipsHiddenFiles errorHandler:nil];
         NSMutableArray *ZOOM_IMAGE_PATHS = [NSMutableArray array];
@@ -165,15 +177,27 @@ int main(int argc, const char * argv[]) {
                 [ZOOM_IMAGE_PATHS addObject:fileURL.path];
             }
         }
-        
+
         CGFloat duration = unpack(GIF_PATH, ZOOM_TMPDIR);
         NSUInteger frameCount = [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:ZOOM_TMPDIR error:nil] count];
-        
+
         setupZoom(zoom);
+        
         NSDictionary *info = extractWindowInfo(zoom);
         NSInteger settingsWindow = [[info valueForKey:@"Settings"] integerValue];
+        __block BOOL looping = YES;
+        signal(SIGINT, SIG_IGN);
+        dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGINT, 0, dispatch_get_global_queue(0, 0));
+        dispatch_source_set_event_handler(source, ^{
+            // when we ctrl-c, exit gracefully
+            printf("Shutting down...");
+            looping = NO;
+            scrollZoomToTheLeft(zoom, settingsWindow);
+            exit(0);
+        });
+        dispatch_resume(source);
 
-        for (int frame = 0; frame < frameCount; frame = (frame + 1) % frameCount) {
+        for (int frame = 0; frame < frameCount && looping; frame = (frame + 1) % frameCount) {
             if (frame == 0) {
                 scrollZoomToTheRight(zoom, settingsWindow);
             }

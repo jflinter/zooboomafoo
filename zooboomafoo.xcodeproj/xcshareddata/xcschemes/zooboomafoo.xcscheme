@@ -52,11 +52,23 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "~/Downloads/zombies.gif"
+            argument = "~/Desktop/crate.gif"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "~/Desktop/babboon.gif"
+            argument = "~/Downloads/Creditbillshrug.gif"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "~/Desktop/fire.gif"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "~/Developer/zoomgif/samwang.gif"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "~/Downloads/seinfeld-happy-dance-Jerry-seinfeld-Elaine-George-Costanza.gif"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
