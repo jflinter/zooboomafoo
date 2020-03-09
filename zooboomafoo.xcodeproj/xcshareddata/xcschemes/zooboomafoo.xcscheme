@@ -52,7 +52,11 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "~/Desktop/crate.gif"
+            argument = "~/Desktop/sunglasses.gif"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "https://media.giphy.com/media/3oz8xwooUvMqNB1zEs/giphy.gif"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
